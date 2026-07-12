@@ -8,7 +8,7 @@ public class mapdesign : MonoBehaviour
     [SerializeField] private Tilemap targetTilemap;
 
     // Inspector'dan seçilecek tile (Rule Tile/normal tile olabilir).
-    [SerializeField] private Tile groundTile;
+    [SerializeField] private TileBase groundTile;
 
     [SerializeField] private int width = 120;
     [SerializeField] private int height = 30;

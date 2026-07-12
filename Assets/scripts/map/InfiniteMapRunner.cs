@@ -1,113 +1,132 @@
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Tilemaps;
 
 /// <summary>
-/// Oyuncu ilerledikçe sağa doğru yeni map segmentleri üretir.
-/// mapdesign içindeki Generate() tek sefer üretim yapıyorsa, bu sınıf
-/// birden fazla “segment” üretip Tilemap’i yerinde günceller.
+/// Oyuncunun etrafında PENCERE tabanlı sonsuz map akışı yönetir.
+/// - Her frame oyuncunun etrafındaki segmentlerin var olduğundan emin olur (eksikse üretir).
+///   Oyuncu geri dönerse temizlenmiş segmentler DETERMİNİSTİK olarak birebir yeniden üretilir.
+/// - Oyuncudan yeterince uzaklaşan segmentler tilemap'ten silinir (optimizasyon).
+/// - Başlangıçta oyuncunun çevresi baştan doldurulur ve oyuncu zemine oturtulur (boşlukta başlamaz).
 /// </summary>
 public class InfiniteMapRunner : MonoBehaviour
 {
     [Header("Streaming Generator")]
-    [Tooltip("Segment bazlı tile üretimini yapan generator")]
     [SerializeField] private TiledChunkedMapGenerator chunkGenerator;
-
     [SerializeField] private Transform player;
 
-
     [Header("Streaming")]
-    [Tooltip("Oyuncu bu X değerini geçince yeni segment üret")]
-    [SerializeField] private float spawnAheadX = 35f;
+    [Tooltip("Oyuncunun önünde/arkasında kaç world-unit ileriye kadar map hazır tutulsun.")]
+    [SerializeField] private float spawnAheadX = 40f;
 
-    [Tooltip("Bir segmentin kaç tile genişliğinde olacağı. mapdesign.width/segment mantığına göre ayarla")]
+    [Tooltip("Bir segmentin (chunk) kaç tile genişliğinde olacağı.")]
     [SerializeField] private int segmentWidthTiles = 40;
 
-    [Tooltip("Hafızada tutulacak maksimum segment adedi (eski segmentler silinir)")]
+    [Tooltip("Oyuncunun etrafında hafızada tutulacak maksimum segment yarıçapı. Bundan uzak chunk'lar silinir.")]
     [SerializeField] private int maxSegments = 6;
 
-    private int producedSegments = 0;
+    [Tooltip("Segment index 0'ın world sol X'i (tile hizası). Grid ile aynı origin olmalı.")]
+    [SerializeField] private float firstSegmentLeftWorldX = -60f;
+
+    [Header("Başlangıç")]
+    [Tooltip("Oyuncuyu başlangıçta zemin yüzeyine oturt (boşlukta/havada başlamayı engeller).")]
+    [SerializeField] private bool snapPlayerToGroundOnStart = true;
+    [SerializeField] private float startGroundClearance = 1f;
+
+    private readonly Dictionary<int, BoundsInt> segments = new Dictionary<int, BoundsInt>();
+    private bool initialized;
 
     private void Reset()
     {
         chunkGenerator = GetComponent<TiledChunkedMapGenerator>();
     }
 
-
-    private int rightmostSegmentIndex = 0; // inclusive
-    private int leftmostSegmentIndex = 0;  // inclusive
-    private bool initialized = false;
-
     private void Start()
     {
-        // İlk segmenti hemen üret.
-        float firstLeft = firstSegmentLeftWorldX;
-        int firstIndex = 0;
-        ProduceSegmentByIndex(firstIndex, firstLeft);
-        rightmostSegmentIndex = firstIndex;
-        leftmostSegmentIndex = firstIndex;
-        producedSegments = 1;
+        if (chunkGenerator == null || player == null)
+        {
+            Debug.LogWarning("[InfiniteMapRunner] chunkGenerator veya player atanmadı. Streaming devre dışı.");
+            enabled = false;
+            return;
+        }
+
+        // Oyuncunun çevresini baştan doldur => başlangıçta ayağının altında zemin garanti.
+        int playerSeg = SegmentIndexForWorldX(player.position.x);
+        EnsureWindow(playerSeg);
+
+        if (snapPlayerToGroundOnStart)
+            SnapPlayerToGround();
+
         initialized = true;
     }
 
     private void Update()
     {
-        if (!initialized || chunkGenerator == null || player == null)
+        if (!initialized)
             return;
 
-        float playerX = player.position.x;
-
-        // Segment index’ine göre world sol sınırını hesaplayacağız.
-        // worldLeft(index) = firstSegmentLeftWorldX + index * segmentWidthTiles
-        float rightSpawnTrigger = WorldLeftOfSegment(rightmostSegmentIndex + 1) + spawnAheadX;
-        if (playerX >= rightSpawnTrigger)
-        {
-            int nextIndex = rightmostSegmentIndex + 1;
-            ProduceSegmentByIndex(nextIndex, WorldLeftOfSegment(nextIndex));
-            rightmostSegmentIndex = nextIndex;
-            producedSegments++;
-            CleanupOldSegments();
-        }
-
-        float leftSpawnTrigger = WorldLeftOfSegment(leftmostSegmentIndex) - spawnAheadX;
-        if (playerX <= leftSpawnTrigger)
-        {
-            int prevIndex = leftmostSegmentIndex - 1;
-            ProduceSegmentByIndex(prevIndex, WorldLeftOfSegment(prevIndex));
-            leftmostSegmentIndex = prevIndex;
-            producedSegments++;
-            CleanupOldSegments();
-        }
+        int playerSeg = SegmentIndexForWorldX(player.position.x);
+        EnsureWindow(playerSeg);
+        CleanupFarSegments(playerSeg);
     }
 
-    [Header("Streaming")]
-    [SerializeField] private float firstSegmentLeftWorldX = -60f;
+    private int SpawnRadius() => Mathf.Max(1, Mathf.CeilToInt(spawnAheadX / segmentWidthTiles) + 1);
+    private int CleanupRadius() => Mathf.Max(maxSegments, SpawnRadius() + 1);
 
     private float WorldLeftOfSegment(int segmentIndex) => firstSegmentLeftWorldX + segmentIndex * segmentWidthTiles;
 
-    private void ProduceSegmentByIndex(int segmentIndex, float segmentLeftWorldX)
+    private int SegmentIndexForWorldX(float worldX) =>
+        Mathf.FloorToInt((worldX - firstSegmentLeftWorldX) / segmentWidthTiles);
+
+    private void EnsureWindow(int centerSeg)
     {
-        int startXTile = Mathf.RoundToInt(segmentLeftWorldX);
-        chunkGenerator?.GenerateSegment(startXTile);
+        int r = SpawnRadius();
+        for (int idx = centerSeg - r; idx <= centerSeg + r; idx++)
+            EnsureSegment(idx);
     }
 
-    // (İhtiyaç olursa) segment world-left değerinden üretmek için tek yardımcı.
-    // Not: Şu an Update() ve Start() ProduceSegmentByIndex kullanıyor.
-    private void ProduceSegment(float segmentLeftWorldX)
+    private void EnsureSegment(int idx)
     {
-        int startXTile = Mathf.RoundToInt(segmentLeftWorldX);
-        if (chunkGenerator != null)
-            chunkGenerator.GenerateSegment(startXTile);
-        else
-            Debug.LogWarning("[InfiniteMapRunner] chunkGenerator atanmadı. Tile üretimi yapılamıyor.");
+        if (segments.ContainsKey(idx))
+            return; // zaten var => yeniden üretme (deterministik olduğu için de aynı olurdu).
+
+        int startXTile = Mathf.RoundToInt(WorldLeftOfSegment(idx));
+        var result = chunkGenerator.GenerateSegment(idx, startXTile, segmentWidthTiles);
+        segments[idx] = result.bounds;
     }
 
-
-
-
-    private void CleanupOldSegments()
+    private void CleanupFarSegments(int playerSeg)
     {
-        // Basit versiyon: şu an boş. İstersen segmentleri Tilemap üzerinden cell bazında silip
-        // hafifletecek şekilde genişletebiliriz.
+        int radius = CleanupRadius();
+
+        List<int> toRemove = null;
+        foreach (var kvp in segments)
+        {
+            if (Mathf.Abs(kvp.Key - playerSeg) > radius)
+                (toRemove ??= new List<int>()).Add(kvp.Key);
+        }
+
+        if (toRemove == null)
+            return;
+
+        foreach (int idx in toRemove)
+        {
+            chunkGenerator.ClearBounds(segments[idx]);
+            segments.Remove(idx);
+        }
+
+        chunkGenerator.CompressTilemapBounds();
+    }
+
+    private void SnapPlayerToGround()
+    {
+        // Zemin artık düz değil; oyuncunun bulunduğu X'teki gerçek yüzeye (tepe/çukur) oturt.
+        float y = chunkGenerator.GroundSurfaceWorldYAt(player.position.x) + startGroundClearance;
+        Vector3 p = player.position;
+        p.y = y;
+        player.position = p;
+
+        var rb = player.GetComponent<Rigidbody2D>();
+        if (rb != null)
+            rb.linearVelocity = Vector2.zero;
     }
 }
-

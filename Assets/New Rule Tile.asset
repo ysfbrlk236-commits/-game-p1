@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: New Rule Tile
   m_EditorClassIdentifier: Unity.2D.Tilemap.Extras::UnityEngine.RuleTile
   m_DefaultSprite: {fileID: 2384625528537683045, guid: 186d9cacb3118d04c9ff948abd52177d, type: 3}
-  m_DefaultGameObject: {fileID: 7518909273544377641, guid: c3f8dc4561ce5ed489bc2bd245ec7521, type: 3}
+  m_DefaultGameObject: {fileID: 0}
   m_DefaultColliderType: 1
   m_TilingRules:
   - m_Id: 0
@@ -162,7 +162,7 @@ MonoBehaviour:
     m_Output: 0
     m_ColliderType: 1
     m_RandomTransform: 0
-    m_Neighbors: 01000000010000000100000001000000
+    m_Neighbors: 01000000010000000100000002000000
     m_NeighborPositions:
     - {x: 1, y: 0, z: 0}
     - {x: -1, y: 0, z: 0}

@@ -5,11 +5,12 @@ public class playermovement : MonoBehaviour
 {
     private float horizontal;
     private float speed = 8f;
-    private float jumpingPower = 16f;
+    private float jumpingPower = 20f;
     private bool isFacingRight = true;
     [SerializeField] private Rigidbody2D rb;
     [SerializeField] private Transform groundCheck;
     [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private hookcontrol hook;
 
     private float coyoteTime = 0.15f;
     private float coyoteTimeCounter;
@@ -23,6 +24,12 @@ public class playermovement : MonoBehaviour
     private bool canDash = true;
     private float dashDirection;
 
+    // Read-only accessors for external systems (e.g. map generator's jump-reachability math).
+    public float MoveSpeed => speed;
+    public float JumpVelocity => jumpingPower;
+    public float GravityScale => rb != null ? rb.gravityScale : 1f;
+    public float EffectiveGravity => Mathf.Abs(Physics2D.gravity.y * GravityScale);
+
     void Update()
     {
         if (isDashing) return;
@@ -34,7 +41,7 @@ public class playermovement : MonoBehaviour
 
         horizontal = Input.GetAxisRaw("Horizontal");
 
-        if (Input.GetKeyDown(KeyCode.LeftShift) && canDash)
+        if (Input.GetKeyDown(KeyCode.LeftShift) && canDash && (hook == null || !hook.IsHooked))
         {
             dashDirection = isFacingRight ? 1f : -1f;
             StartCoroutine(Dash());

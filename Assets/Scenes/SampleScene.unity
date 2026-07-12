@@ -452,7 +452,6 @@ GameObject:
   - component: {fileID: 1062827759}
   - component: {fileID: 1062827758}
   - component: {fileID: 1062827757}
-  - component: {fileID: 1062827760}
   - component: {fileID: 1062827762}
   - component: {fileID: 1062827761}
   m_Layer: 3
@@ -727,32 +726,6 @@ TilemapCollider2D:
   m_MaximumTileChangeCount: 1000
   m_ExtrusionFactor: 0
   m_UseDelaunayMesh: 0
---- !u!114 &1062827760
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1062827753}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9ffec1f8c02e7c14dbad8530ffe76289, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::mapdesign
-  targetTilemap: {fileID: 1062827756}
-  groundTile: {fileID: 11400000, guid: 50775ae2c0084ab4896535e3ae3f0e7b, type: 2}
-  width: 120
-  height: 40
-  startX: -90
-  maxStepUpTiles: 3
-  maxGapTiles: 5
-  segmentLength: 36
-  platformMinRunTiles: 3
-  platformMaxRunTiles: 6
-  clearOnStart: 0
-  groundY: 60
-  minGapTilesAll: 7
-  minGapTilesAllForSides: 7
 --- !u!114 &1062827761
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -771,6 +744,8 @@ MonoBehaviour:
   segmentWidthTiles: 40
   maxSegments: 8
   firstSegmentLeftWorldX: -50
+  snapPlayerToGroundOnStart: 1
+  startGroundClearance: 1
 --- !u!114 &1062827762
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -784,17 +759,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TiledChunkedMapGenerator
   targetTilemap: {fileID: 1062827756}
-  groundTile: {fileID: 11400000, guid: 50775ae2c0084ab4896535e3ae3f0e7b, type: 2}
-  width: 120
+  groundTile: {fileID: 11400000, guid: d2264e72e4e79834799d1d34d2a4d1df, type: 2}
+  worldSeed: 12345
   height: 30
   groundY: -4
-  maxStepUpTiles: 3
-  minPlatformY: -999
+  groundThickness: 3
+  solidGroundFloor: 1
+  maxTerrainRise: 5
+  terrainStepMaxTiles: 2
+  terrainMinRunTiles: 2
+  enableGaps: 1
+  gapDepthTiles: 4
+  gapMaxWidthCap: 5
+  gapMinSpacingTiles: 8
+  spawnSafeRadiusTiles: 6
+  enableFloatingPlatforms: 1
   minGapTiles: 5
-  maxGapTiles: 4
-  segmentLength: 10
+  maxGapTiles: 6
   platformMinRunTiles: 2
   platformMaxRunTiles: 5
+  platformClearanceTiles: 5
+  platformThickness: 2
+  playerMovement: {fileID: 1539404630}
+  autoComputeReachability: 1
+  gapSafetyMargin: 0.75
+  stepUpSafetyMargin: 0.85
+  logReachabilityOnAwake: 1
 --- !u!1 &1149643770
 GameObject:
   m_ObjectHideFlags: 0
@@ -899,6 +889,7 @@ GameObject:
   - component: {fileID: 1539404631}
   - component: {fileID: 1539404630}
   - component: {fileID: 1539404634}
+  - component: {fileID: 1539404635}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -923,6 +914,7 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
+  hook: {fileID: 1539404635}
   dashSpeed: 24
   dashDuration: 0.15
   dashCooldown: 0.8
@@ -1021,8 +1013,8 @@ Transform:
   m_GameObject: {fileID: 1539404629}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -8.41, y: -1.31, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.2927, y: -2.5, z: 0}
+  m_LocalScale: {x: 0.7, y: 0.7, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 710590598}
@@ -1074,6 +1066,26 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1, y: 1}
   m_EdgeRadius: 0
+--- !u!114 &1539404635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1539404629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e226607ecb91274288c8bc82181bc11, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::hookcontrol
+  rb: {fileID: 1539404631}
+  hookableLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  rope: {fileID: 0}
+  maxDistance: 12
+  pullSpeed: 30
+  stopDistance: 0.3
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
